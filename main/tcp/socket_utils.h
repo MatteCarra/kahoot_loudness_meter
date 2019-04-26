@@ -7,4 +7,7 @@
 
 int readFully(int socket, unsigned int bytesToRead, void * buffer);
 
+int readByte(int socket, unsigned char * byte);
+
+int readUShort(int socket, unsigned short *data);
 #endif //TCP_SERVER_SOCKET_UTILS_H

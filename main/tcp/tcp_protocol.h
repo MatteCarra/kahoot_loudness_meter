@@ -7,12 +7,12 @@
 
 #include "data/circular_buffer.h"
 #include "freertos/task.h"
+#include <stdbool.h>
 
 typedef struct {
-    unsigned char id;
-    unsigned char len;
-    unsigned char *data;
-} packet;
+    bool received;
+    unsigned short expectedId;
+} keep_alive_t;
 
 void init_tcp_protocol();
 

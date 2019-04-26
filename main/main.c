@@ -95,5 +95,5 @@ void app_main() {
     initialise_wifi();
     wait_for_ip();
 
-    xTaskCreate(tcp_server_task, "tcp_server", 4096, &buffer, 5, NULL);
+    xTaskCreate(tcp_server_task, "tcp_server", 8192, &buffer, 5, NULL);
 }
