@@ -37,13 +37,21 @@ int add_socket(int socket) {
         i++;
 
         if(i == MAX_SOCKETS)
-            return 0; //Can't accept new socket
+            return -1; //Can't accept new socket
     }
 
     sockets[i] = socket;
     keep_alive_per_socket[i].received = true;
 
-    return 1;
+    return i;
+}
+
+void keep_alive_received(int socket, int index, int keep_alive) {
+    keep_alive_t * obj = &keep_alive_per_socket[index];
+
+    if(sockets[index] == socket && obj->expectedId == keep_alive) {
+        obj->received = true;
+    }
 }
 
 void destroy_socket(int socket) {
@@ -102,7 +110,7 @@ void data_sender_thread(void *pvParameters) {
     }
 }
 
-static int readPacket(int sock) {
+static int readPacket(int sock, int socketIndex) {
     unsigned char id;
 
     if(!readByte(sock, &id))
@@ -110,14 +118,15 @@ static int readPacket(int sock) {
 
     if(id == 0) { //disconnect packet
         ESP_LOGI(TAG, "Client requested disconnect");
+        destroy_socket(sock);
         return 0; //Returns 0 => Disconnects
     } else if (id == 1) { //keep alive packet
         unsigned short keepAliveId;
-        if (!readUShort(sock, &keepAliveId)) { //Keep alive id
-
-            return 0;
+        if (!readUShort(sock, &keepAliveId)) {
+            return 0; //error
         }
-        //TODO
+
+        keep_alive_received(sock, socketIndex, keepAliveId);
     }
 
     return 1;
@@ -129,18 +138,17 @@ void keep_alive_thread(void *args) {
     unsigned char buff[3];
     unsigned short data;
 
-    while(1) {
-        int i;
-        int socket;
-        keep_alive_t * keep_alive;
+    int i;
+    int socket;
+    keep_alive_t * keep_alive;
 
+    while(1) {
         for(i = 0; i < MAX_SOCKETS; i++) {
             socket = sockets[i];
-            keep_alive = keep_alive_per_socket + i;
-
             if(socket != -1) {
+                keep_alive = &keep_alive_per_socket[i];
+
                 if(!keep_alive->received) {
-                    //TODO disconnect
                     ESP_LOGE(TAG, "Keep alive was not received... Disconnecting socket");
                     disconnect_socket(socket);
                 } else {
@@ -164,15 +172,19 @@ void keep_alive_thread(void *args) {
             }
         }
 
-        vTaskDelay(pdMS_TO_TICKS(15000)); //15 seconds
+        vTaskDelay(pdMS_TO_TICKS(30000)); //30 seconds
     }
 }
 
-void connection_thread(void * arg) {
-    int sock = *((int *)arg);
+void connection_thread(void * pvParameters) {
+    int * args = (int *) pvParameters;
+    int sock = args[0];
+    int sockIndex = args[1];
+
+    free(args);
 
     while(1) {
-        if(!readPacket(sock)) {
+        if(!readPacket(sock, sockIndex)) {
             ESP_LOGI(TAG, "Error while reading a packet. Disconnected");
             break;
         }
@@ -242,10 +254,14 @@ void tcp_server_task(void *pvParameters) {
                 break;
             }
 
-            if(add_socket(sock)) {
+            int socketIndex = add_socket(sock);
+            if(socketIndex != -1) {
                 ESP_LOGI(TAG, "Socket accepted");
 
-                xTaskCreate(connection_thread, "client_thread", 4096, &sock, 1, NULL);
+                int * clientThreadArgs = malloc(sizeof(int) * 2);
+                clientThreadArgs[0] = sock;
+                clientThreadArgs[1] = socketIndex;
+                xTaskCreate(connection_thread, "client_thread", 4096, clientThreadArgs, 1, NULL);
             } else {
                 ESP_LOGE(TAG, "Unable to accept connection: not enough space");
                 close(sock);

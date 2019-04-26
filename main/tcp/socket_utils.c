@@ -7,7 +7,7 @@
 #include "esp_wifi.h"
 
 int readByte(int socket, unsigned char * byte) {
-    if(read(socket, &byte, 1) < 1)
+    if(read(socket, byte, 1) < 1)
         return 0;
 
     return 1;
