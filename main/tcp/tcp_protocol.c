@@ -58,10 +58,16 @@ void destroy_socket(int socket) {
     for(int i = 0; i < MAX_SOCKETS; i++) {
         if(sockets[i] == socket) {
             sockets[i] = -1;
+            close(socket);
         }
     }
+}
 
-    close(socket);
+void destroy_socket_at_index(int socket, int socketIndex) {
+    if(sockets[socketIndex] == socket) {
+        sockets[socketIndex] = -1;
+        close(socket);
+    }
 }
 
 void disconnect_socket(int socket) {
@@ -118,12 +124,11 @@ static int readPacket(int sock, int socketIndex) {
 
     if(id == 0) { //disconnect packet
         ESP_LOGI(TAG, "Client requested disconnect");
-        destroy_socket(sock);
         return 0; //Returns 0 => Disconnects
     } else if (id == 1) { //keep alive packet
         unsigned short keepAliveId;
         if (!readUShort(sock, &keepAliveId)) {
-            return 0; //error
+            return 0; //error => Disconnects
         }
 
         keep_alive_received(sock, socketIndex, keepAliveId);
@@ -190,7 +195,7 @@ void connection_thread(void * pvParameters) {
         }
     }
 
-    destroy_socket(sock);
+    destroy_socket_at_index(sock, sockIndex);
     vTaskDelete(NULL);
 }
 
