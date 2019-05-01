@@ -8,7 +8,7 @@
 #include "nvs_flash.h"
 
 #include "sensor/sensor_thread.h"
-#include "tcp/tcp_protocol.h"
+#include "udp/udp_protocol.h"
 
 /* The examples use simple WiFi configuration that you can set via
    'make menuconfig'.
@@ -95,5 +95,5 @@ void app_main() {
     initialise_wifi();
     wait_for_ip();
 
-    xTaskCreate(tcp_server_task, "tcp_server", 8192, &buffer, 5, NULL);
+    xTaskCreate(udp_server_task, "tcp_server", 8192, &buffer, 5, NULL);
 }

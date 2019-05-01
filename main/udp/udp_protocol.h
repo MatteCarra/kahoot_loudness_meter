@@ -14,11 +14,7 @@ typedef struct {
     unsigned short expectedId;
 } keep_alive_t;
 
-void init_tcp_protocol();
-
-void tcp_server_task(void *args);
-
-void connection_thread(void * p);
+void udp_server_task(void *args);
 
 #endif //TCP_SERVER_TCP_PROTOCOL_H
 
