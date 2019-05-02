@@ -113,7 +113,7 @@ int add_socket(struct sockaddr_in * socket) {
         trueFlag = true;
     }
 
-    return -1;
+    return recovery_add_socket(socket);
 }
 
 void destroy_socket(struct sockaddr_in * socket) {
