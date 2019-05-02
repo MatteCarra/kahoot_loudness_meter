@@ -14,7 +14,8 @@
 #include <stdatomic.h>
 
 #define PORT CONFIG_EXAMPLE_PORT
-#define MAX_SOCKETS 150
+#define MAX_SOCKETS 50
+#define BUF_SIZE 256
 
 typedef struct {
     struct sockaddr_in socketAddr;
@@ -121,7 +122,7 @@ void destroy_socket(struct sockaddr_in * socket) {
     for(int i = 0; i < MAX_SOCKETS; i++) {
         client = &sockets[i];
 
-        if(!atomic_load(client->free) && sockaddr_cmp(&client->socketAddr, socket) && atomic_compare_exchange_weak(&client->free, &falseFlag, true)) { //atomically check if client->free is false and replace it with true
+        if(!atomic_load(&client->free) && sockaddr_cmp(&client->socketAddr, socket) && atomic_compare_exchange_weak(&client->free, &falseFlag, true)) { //atomically check if client->free is false and replace it with true
             atomic_fetch_add(&free_sockets, 1);
             break;
         }
@@ -131,7 +132,7 @@ void destroy_socket(struct sockaddr_in * socket) {
 }
 
 void disconnect_socket(struct sockaddr_in * socket) {
-    send_packet(&client->socketAddr, (char[]) { 2 }, 1); //notify disconnection packet
+    send_packet(socket, (char[]) { 2 }, 1); //notify disconnection packet
 
     destroy_socket(socket);
 }
@@ -151,7 +152,7 @@ void data_sender_thread(void *pvParameters) {
         ulEventsToProcess = ulTaskNotifyTake( pdTRUE, portMAX_DELAY);
 
         while(ulEventsToProcess > 0 && circular_buf_get(buffer, &data) != -1) {
-            keepAlivePacketBuff[0] = 2; //packet id
+            keepAlivePacketBuff[0] = 0; //packet id
 
             //data
             keepAlivePacketBuff[1] = (unsigned char) ((data >> 8) & 0xFF);
@@ -196,7 +197,7 @@ void handlePacket(const char * buffer, int len, struct sockaddr_in * addr) {
 void udp_server_task(void *pvParameters) {
     circular_buffer *buffer = (circular_buffer *) pvParameters;
 
-    char rx_buffer[128];
+    char rx_buffer[BUF_SIZE];
     int len;
 
     //server socket addr
