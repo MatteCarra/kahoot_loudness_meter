@@ -69,6 +69,7 @@ void sensor_thread(void *pvParameters) {
     esp_adc_cal_value_t val_type = esp_adc_cal_characterize(unit, atten, ADC_WIDTH_BIT_12, DEFAULT_VREF, adc_chars);
     print_char_val_type(val_type);
 
+    ESP_LOGI(TAG, "Sensor thread is sending data!");
     //Continuously sample ADC1
     while (1) {
         uint32_t adc_reading = 0;

@@ -13,8 +13,8 @@
 #include "sensor/sensor_thread.h"
 #include <stdatomic.h>
 
-#define PORT CONFIG_EXAMPLE_PORT
-#define MAX_SOCKETS 50
+#define PORT 3333
+#define MAX_SOCKETS 64
 #define BUF_SIZE 256
 
 typedef struct {
@@ -61,7 +61,14 @@ void on_keep_alive_receive(struct sockaddr_in *addr) {
 }
 
 int send_packet(struct sockaddr_in *addr, char * buffer, int len) {
-    return sendto(serverSocket, buffer, len, 0, (struct sockaddr *) addr, sizeof(struct sockaddr_in));
+    int res = sendto(serverSocket, buffer, len, 0, (struct sockaddr *) addr, sizeof(struct sockaddr_in));
+
+    if(res == ENOMEM) {
+        vTaskDelay(1);
+        return send_packet(addr, buffer, len);
+    }
+
+    return res;
 }
 
 int recovery_add_socket(struct sockaddr_in * socket) {
@@ -93,7 +100,8 @@ int recovery_add_socket(struct sockaddr_in * socket) {
 }
 
 int add_socket(struct sockaddr_in * socket) {
-    if(atomic_load(&free_sockets) == 0) { //if free sockets is = 0 => try to kick a client that didn't send a keep alive in the last 5 seconds
+    int free_sockets_value = atomic_load(&free_sockets);
+    if(free_sockets_value == 0) { //if free sockets is = 0 => try to kick a client that didn't send a keep alive in the last 5 seconds
         return recovery_add_socket(socket);
     }
 
@@ -142,7 +150,7 @@ void data_sender_thread(void *pvParameters) {
 
     ESP_LOGI(TAG, "Data sender thread started");
 
-    unsigned char keepAlivePacketBuff[3];
+    char keepAlivePacketBuff[3];
     unsigned short data;
 
     int sock_n;
@@ -161,10 +169,10 @@ void data_sender_thread(void *pvParameters) {
             for(sock_n = 0; sock_n < MAX_SOCKETS; sock_n++) {
                 socket = &sockets[sock_n];
                 if(!atomic_load(&socket->free)) {
-                    int err = sendto(serverSocket, keepAlivePacketBuff, 3, 0, (struct sockaddr *) &socket->socketAddr, sizeof(struct sockaddr_in));
+                    int err = send_packet(&socket->socketAddr, keepAlivePacketBuff, 3);
 
                     if (err < 0) {
-                        ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
+                        ESP_LOGE(TAG, "Error occurred during sending: err %s", strerror(errno));
                         destroy_socket(&socket->socketAddr);
                         break;
                     }

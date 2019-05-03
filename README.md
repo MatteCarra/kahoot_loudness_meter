@@ -1,38 +1,42 @@
+# Kahoot loudness meter
 
-# TCP Server example
+This program measures sound and sends to 'connected' UDP clients how loud the sound is in the range [0, 4096).
 
-(See the README.md file in the upper level 'examples' directory for more information about examples.)
+The server accepts UDP packets on port 3333.
+Clients have to send a 'connection packet' in order to be added to the 'connected client list'.
 
-The application creates a TCP socket with the specified port number and waits for a connection request from the client. After accepting a request from the client, connection between server and client is established and the application waits for some data to be received from the client. Received data are printed as ASCII text and retransmitted back to the client.
+The server accepts a maximum number of 64 clients in this list.
+Once the connected list is full new clients are accepted if a client in the list has not sent a keep alive in the past 5 seconds.
+In this case the idle client is 'disconnected' and the new client is accommodated.
 
-## How to use example
-
-In order to create TCP client that communicates with TCP server example, choose one of the following options.
-
-There are many host-side tools which can be used to interact with the UDP/TCP server/client. 
-One command line tool is [netcat](http://netcat.sourceforge.net) which can send and receive many kinds of packets. 
-Note: please replace `192.168.0.167 3333` with desired IPV4/IPV6 address (displayed in monitor console) and port number in the following command.
-
-In addition to those tools, simple Python scripts can be found under sockets/scripts directory. Every script is designed to interact with one of the examples.
-
-### TCP client using netcat
-```
-nc 192.168.0.167 3333
-```
-
-### Python scripts
-Script tcpclient.py contains configuration for port number, IP version (IPv4 or IPv6) and IP address that has to be altered to match the values used by the application. Example:
-
-```
-PORT = 3333;
-IP_VERSION = 'IPv4'
-IPV4 = '192.168.0.167'
-IPV6 = 'FE80::32AE:A4FF:FE80:5288'
-```
+## Protocol
+Packets are prefixed with the packet id (1 byte).
+* Packet ids:
+    * Server-side:
+        * Data packet:
+            * Id: 0
+            * Data:
+                1. Unsigned-Short (2 bytes big-endian): It contains an unsigned short with the sound measurement
+        * Disconnect packet:
+            * Description: sent by the server when a client is removed from the connected clients list
+            * Id: 2
+            * Empty data
+    * Client-side:
+        * Connect packet:
+            * Description: It asks the server to add the client address to the connected list to receive data packets
+            * Id: 0
+            * Empty data
+        * Keep alive:
+            * Description: It tells the server that the client is still alive
+            * Id: 1
+            * Empty data
+        * Disconnect packet:
+            * Description: it tells the server to remove the client from the connected list
+            * Empty data
 
 ## Hardware Required
 
-This example can be run on any commonly available ESP32 development board.
+This example can be run on any commonly available ESP32 development board: https://www.espressif.com/en/products/hardware/esp32/overview
 
 ## Configure the project
 
@@ -40,19 +44,15 @@ This example can be run on any commonly available ESP32 development board.
 make menuconfig
 ```
 
-Set following parameter under Serial Flasher Options:
+Set following parameter under Component Config -> WI-FI:
 
-* Set `Default serial port`.
+* Set `Max number of WiFi dynamic TX buffers` to 128.
 
-Set following parameters under Example Configuration Options:
+Set following parameters under KahootLoudnessMeter Configuration Options:
 
 * Set `WiFi SSID` of the Router (Access-Point).
 
 * Set `WiFi Password` of the Router (Access-Point).
-
-* Set `IP version` of the example to be IPV4 or IPV6.
-
-* Set `Port` number of the socket, that server example will create.
 
 ## Build and Flash
 
@@ -63,10 +63,3 @@ make -j4 flash monitor
 ```
 
 (To exit the serial monitor, type ``Ctrl-]``.)
-
-See the Getting Started Guide for full steps to configure and use ESP-IDF to build projects.
-
-
-## Troubleshooting
-
-Start server first, to receive data sent from the client (application).
