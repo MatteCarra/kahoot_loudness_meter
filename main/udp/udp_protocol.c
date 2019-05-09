@@ -150,8 +150,8 @@ void data_sender_thread(void *pvParameters) {
 
     ESP_LOGI(TAG, "Data sender thread started");
 
-    char keepAlivePacketBuff[3];
-    unsigned short data;
+    char keepAlivePacketBuff[5];
+    uint32_t data;
 
     int sock_n;
     client *socket;
@@ -163,13 +163,15 @@ void data_sender_thread(void *pvParameters) {
             keepAlivePacketBuff[0] = 0; //packet id
 
             //data
-            keepAlivePacketBuff[1] = (unsigned char) ((data >> 8) & 0xFF);
-            keepAlivePacketBuff[2] = (unsigned char) (data & 0xFF);
+            keepAlivePacketBuff[1] = (data >> 24) & 0xFF;
+            keepAlivePacketBuff[2] = (data >> 16) & 0xFF;
+            keepAlivePacketBuff[3] = (data >> 8) & 0xFF;
+            keepAlivePacketBuff[4] = data & 0xFF;
 
             for(sock_n = 0; sock_n < MAX_SOCKETS; sock_n++) {
                 socket = &sockets[sock_n];
                 if(!atomic_load(&socket->free)) {
-                    int err = send_packet(&socket->socketAddr, keepAlivePacketBuff, 3);
+                    int err = send_packet(&socket->socketAddr, keepAlivePacketBuff, 5);
 
                     if (err < 0) {
                         ESP_LOGE(TAG, "Error occurred during sending: err %s", strerror(errno));

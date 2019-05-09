@@ -27,7 +27,7 @@ static void retreat_pointer(circular_buffer *cbuf) {
     cbuf->tail = (unsigned char) ((cbuf->tail + 1) % CIRCULAR_BUFFER_SIZE);
 }
 
-int circular_buf_get(circular_buffer *cbuf, unsigned short *data) {
+int circular_buf_get(circular_buffer *cbuf, uint32_t *data) {
     int r = -1;
 
     if(!circular_buf_empty(cbuf)) {
@@ -49,7 +49,7 @@ static void advance_pointer(circular_buffer *cbuf) {
     cbuf->full = (cbuf->head == cbuf->tail);
 }
 
-void circular_buf_put(circular_buffer *cbuf, unsigned short data) {
+void circular_buf_put(circular_buffer *cbuf, uint32_t data) {
     cbuf->buffer[cbuf->head] = data;
 
     advance_pointer(cbuf);
