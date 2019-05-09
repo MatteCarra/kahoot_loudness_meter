@@ -5,10 +5,12 @@
 #ifndef TCP_SERVER_CIRCULAR_BUFFER_H
 #define TCP_SERVER_CIRCULAR_BUFFER_H
 
-#define CIRCULAR_BUFFER_SIZE 255
+#include <stdint.h>
+
+#define CIRCULAR_BUFFER_SIZE 64
 
 typedef struct {
-    unsigned short buffer[CIRCULAR_BUFFER_SIZE];
+    uint32_t buffer[CIRCULAR_BUFFER_SIZE];
     unsigned char head;
     unsigned char tail;
     int full;
@@ -20,8 +22,8 @@ void circular_buf_init(circular_buffer *cb);
 
 unsigned char circular_buf_size(circular_buffer *cbuf);
 
-int circular_buf_get(circular_buffer *cbuf, unsigned short *data);
+int circular_buf_get(circular_buffer *cbuf, uint32_t *data);
 
-void circular_buf_put(circular_buffer *cbuf, unsigned short data);
+void circular_buf_put(circular_buffer *cbuf, uint32_t data);
 
 #endif //TCP_SERVER_CIRCULAR_BUFFER_H

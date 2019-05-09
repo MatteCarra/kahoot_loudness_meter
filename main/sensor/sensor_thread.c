@@ -16,7 +16,8 @@ static const char *TAG = "sensor_thread";
 #include "esp_adc_cal.h"
 
 #define DEFAULT_VREF    1100        //Use adc2_vref_to_gpio() to obtain a better estimate
-#define NO_OF_SAMPLES   64          //Multisampling
+#define NO_OF_SAMPLES   20000          //Multisampling
+#define OFFSET 2000
 
 static esp_adc_cal_characteristics_t *adc_chars;
 static const adc_channel_t channel = ADC_CHANNEL_6; //GPIO34
@@ -49,6 +50,16 @@ static void print_char_val_type(esp_adc_cal_value_t val_type) {
     }
 }
 
+double sampleADC() {
+    double center = 0;
+
+    for(int i = 0; i < NO_OF_SAMPLES * 5; i++) {
+        center += adc1_get_raw((adc1_channel_t) channel);
+    }
+
+    return center / (NO_OF_SAMPLES * 5);
+}
+
 void sensor_thread(void *pvParameters) {
     ESP_LOGI(TAG, "Sensor thread started");
 
@@ -69,23 +80,30 @@ void sensor_thread(void *pvParameters) {
     esp_adc_cal_value_t val_type = esp_adc_cal_characterize(unit, atten, ADC_WIDTH_BIT_12, DEFAULT_VREF, adc_chars);
     print_char_val_type(val_type);
 
+
+    double adcCenter = sampleADC();
+
     ESP_LOGI(TAG, "Sensor thread is sending data!");
+
     //Continuously sample ADC1
     while (1) {
-        uint32_t adc_reading = 0;
         //Multisampling
-        for (int i = 0; i < NO_OF_SAMPLES; i++) {
-            adc_reading += adc1_get_raw((adc1_channel_t)channel);
+        uint64_t adc_readings_sum = 0;
+
+        for(int i = 0; i < NO_OF_SAMPLES; i++) {
+            int32_t value = adc1_get_raw((adc1_channel_t) channel);
+            adcCenter = adcCenter * 0.999f + ((float)value) * 0.001f;
+            value = value - (int32_t) adcCenter;
+            adc_readings_sum += value * value;
         }
-        adc_reading /= NO_OF_SAMPLES;
 
         //Debug: Convert adc_reading to voltage in mV
         //uint32_t voltage = esp_adc_cal_raw_to_voltage(adc_reading, adc_chars);
         //printf("Raw: %d\tVoltage: %dmV\n", adc_reading, voltage);
 
-        circular_buf_put(buffer, adc_reading);
+        circular_buf_put(buffer, adc_readings_sum);
         xTaskNotifyGive(taskToNotify);
 
-        vTaskDelay(pdMS_TO_TICKS(100));
+        vTaskDelay(pdMS_TO_TICKS(50));
     }
 }
